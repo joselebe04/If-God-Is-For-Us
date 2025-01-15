@@ -165,6 +165,7 @@
         const syncIntervalTime = 100; // Sync interval in milliseconds
         const SYNC_THRESHOLD = 0.1; // Allowable drift in seconds
         let syncInterval;
+        let recentlyUnmuted = false; // Track if a track was recently unmuted
         
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
@@ -194,17 +195,19 @@
                     
                     // Temporarily stop sync while muting to prevent skipping
                     clearInterval(syncInterval);
+                    recentlyUnmuted = false; // Reset unmute flag
                 } else {
                     // Unmute: Restore volume
                     slider.value = 1;
                     audio.volume = 1;
                     button.classList.remove('active');
-                    
-                    // Restart sync with a slight delay to avoid immediate interference
+        
+                    // Set the unmute flag to true and restart sync with a delay
+                    recentlyUnmuted = true;
                     setTimeout(() => {
                         syncInterval = setInterval(syncToSoprano, syncIntervalTime);
-                        syncToSoprano(); // Run sync immediately after unmute to re-align
-                    }, 200); // Wait a short moment before restarting sync
+                        syncToSoprano(); // Ensure sync happens once after unmuting
+                    }, 500); // Wait for 500ms after unmute before syncing
                 }
         
                 // After muting/unmuting, sync the tracks
