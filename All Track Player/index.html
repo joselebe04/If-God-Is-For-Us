@@ -163,10 +163,9 @@
         const volumeSliders = document.querySelectorAll('.volume-slider');
         let isPlaying = false;
         const syncThreshold = 0.1; // Allowable drift in seconds
-        const syncIntervalTime = 100; // Sync interval in milliseconds
         let syncTimeout;
         
-        // Track unmute events
+        // Track unmute events and sync state
         let unmutedTracks = new Set();
         
         // Play/Pause functionality
@@ -198,7 +197,7 @@
                     // Remove from unmuted set
                     unmutedTracks.delete(index);
                     
-                    // Temporarily stop sync while muting to prevent skipping
+                    // Temporarily stop sync while muting
                     cancelAnimationFrame(syncTimeout);
                 } else {
                     // Unmute: Restore volume
@@ -239,8 +238,11 @@
         
         // Start the sync loop using requestAnimationFrame for smoother updates
         const syncLoop = () => {
-            syncToSoprano();
-            syncTimeout = requestAnimationFrame(syncLoop);
+            // Only sync if playing
+            if (isPlaying) {
+                syncToSoprano();
+                syncTimeout = requestAnimationFrame(syncLoop);
+            }
         };
         
         // Update progress bar and current time
