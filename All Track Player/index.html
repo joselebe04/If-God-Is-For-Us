@@ -163,6 +163,8 @@
         const volumeSliders = document.querySelectorAll('.volume-slider');
         let isPlaying = false;
         let syncInterval; // Variable for the sync interval
+        const SYNC_THRESHOLD = 0.1; // Allowable drift in seconds
+        const ADJUSTMENT_RATE = 0.05; // Speed adjustment rate
     
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
@@ -202,15 +204,24 @@
             });
         });
     
-        // Sync all tracks to Soprano's time
+        // Sync all tracks to Soprano's time using playbackRate adjustment
         const syncToSoprano = () => {
             const sopranoTime = audioElements[0].currentTime;
     
             audioElements.forEach((audio, index) => {
                 if (index !== 0 && !muteButtons[index].classList.contains('active')) {
-                    // Only sync unmuted tracks
-                    if (Math.abs(audio.currentTime - sopranoTime) > 0.05) { // 50ms threshold for syncing
-                        audio.currentTime = sopranoTime;
+                    const timeDifference = audio.currentTime - sopranoTime;
+    
+                    if (Math.abs(timeDifference) > SYNC_THRESHOLD) {
+                        // Gradual sync using playbackRate
+                        if (timeDifference > 0) {
+                            audio.playbackRate = 1 - ADJUSTMENT_RATE; // Slow down
+                        } else {
+                            audio.playbackRate = 1 + ADJUSTMENT_RATE; // Speed up
+                        }
+                    } else {
+                        // Reset playbackRate when synced
+                        audio.playbackRate = 1;
                     }
                 }
             });
