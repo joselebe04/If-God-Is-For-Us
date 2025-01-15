@@ -164,7 +164,7 @@
         let isPlaying = false;
         let syncInterval; // Variable for the sync interval
         const SYNC_THRESHOLD = 0.1; // Allowable drift in seconds
-        const ADJUSTMENT_RATE = 0.05; // Speed adjustment rate
+        const SYNC_DELAY = 0.1; // Delay for syncing tracks (in seconds)
     
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
@@ -204,24 +204,17 @@
             });
         });
     
-        // Sync all tracks to Soprano's time using playbackRate adjustment
+        // Sync all tracks to Soprano's time directly
         const syncToSoprano = () => {
             const sopranoTime = audioElements[0].currentTime;
     
             audioElements.forEach((audio, index) => {
                 if (index !== 0 && !muteButtons[index].classList.contains('active')) {
-                    const timeDifference = audio.currentTime - sopranoTime;
+                    const timeDifference = Math.abs(audio.currentTime - sopranoTime);
     
-                    if (Math.abs(timeDifference) > SYNC_THRESHOLD) {
-                        // Gradual sync using playbackRate
-                        if (timeDifference > 0) {
-                            audio.playbackRate = 1 - ADJUSTMENT_RATE; // Slow down
-                        } else {
-                            audio.playbackRate = 1 + ADJUSTMENT_RATE; // Speed up
-                        }
-                    } else {
-                        // Reset playbackRate when synced
-                        audio.playbackRate = 1;
+                    // If time difference exceeds threshold, directly sync the track
+                    if (timeDifference > SYNC_THRESHOLD) {
+                        audio.currentTime = sopranoTime; // Reset to Soprano's currentTime
                     }
                 }
             });
