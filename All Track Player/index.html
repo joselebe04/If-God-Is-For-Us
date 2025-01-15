@@ -200,8 +200,11 @@
                     audio.volume = 1;
                     button.classList.remove('active');
                     
-                    // Restart sync after unmuting
-                    syncInterval = setInterval(syncToSoprano, syncIntervalTime);
+                    // Restart sync with a slight delay to avoid immediate interference
+                    setTimeout(() => {
+                        syncInterval = setInterval(syncToSoprano, syncIntervalTime);
+                        syncToSoprano(); // Run sync immediately after unmute to re-align
+                    }, 200); // Wait a short moment before restarting sync
                 }
         
                 // After muting/unmuting, sync the tracks
