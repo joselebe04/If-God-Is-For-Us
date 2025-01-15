@@ -165,10 +165,9 @@
         const syncThreshold = 0.1; // Allowable drift in seconds
         const syncIntervalTime = 100; // Sync interval in milliseconds
         let syncTimeout;
-        let recentlyUnmuted = false;
         
-        // Detect if the user is on a mobile device
-        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        // Track unmute events
+        let unmutedTracks = new Set();
         
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
@@ -195,21 +194,24 @@
                     slider.value = 0;
                     audio.volume = 0;
                     button.classList.add('active');
+        
+                    // Remove from unmuted set
+                    unmutedTracks.delete(index);
                     
                     // Temporarily stop sync while muting to prevent skipping
                     cancelAnimationFrame(syncTimeout);
-                    recentlyUnmuted = false; // Reset unmute flag
                 } else {
                     // Unmute: Restore volume
                     slider.value = 1;
                     audio.volume = 1;
                     button.classList.remove('active');
         
-                    // Set the unmute flag to true and restart sync with a delay
-                    recentlyUnmuted = true;
-                    setTimeout(() => {
-                        syncLoop(); // Restart sync loop after a brief delay
-                    }, 500); // Wait for 500ms after unmute
+                    // Add to unmuted set
+                    unmutedTracks.add(index);
+                    
+                    // Ensure sync when unmuting
+                    syncToSoprano();
+                    syncLoop(); // Restart sync loop
                 }
             });
         });
@@ -219,7 +221,8 @@
             const sopranoTime = audioElements[0].currentTime;
         
             audioElements.forEach((audio, index) => {
-                if (index !== 0 && !muteButtons[index].classList.contains('active')) {
+                // Only sync unmuted tracks that are not the soprano
+                if (index !== 0 && unmutedTracks.has(index) && !muteButtons[index].classList.contains('active')) {
                     const timeDifference = Math.abs(audio.currentTime - sopranoTime);
         
                     if (timeDifference > syncThreshold) {
