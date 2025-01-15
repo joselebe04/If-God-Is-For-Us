@@ -162,24 +162,20 @@
         const waveforms = document.querySelectorAll('.waveform');
         const volumeSliders = document.querySelectorAll('.volume-slider');
         let isPlaying = false;
-        let syncInterval; // Variable for the sync interval
+        const syncIntervalTime = 100; // Sync interval in milliseconds
         const SYNC_THRESHOLD = 0.1; // Allowable drift in seconds
-        const SYNC_DELAY = 0.1; // Delay for syncing tracks (in seconds)
+        let syncInterval;
     
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
             if (isPlaying) {
                 audioElements.forEach(audio => audio.pause());
                 playPauseButton.textContent = 'Play';
-    
-                // Stop the sync interval when paused
-                clearInterval(syncInterval);
+                clearInterval(syncInterval); // Stop syncing when paused
             } else {
                 audioElements.forEach(audio => audio.play());
                 playPauseButton.textContent = 'Pause';
-    
-                // Start the sync interval when playing
-                syncInterval = setInterval(syncToSoprano, 50); // Sync every 50ms
+                syncInterval = setInterval(syncToSoprano, syncIntervalTime); // Sync every 100ms
             }
             isPlaying = !isPlaying;
         });
@@ -204,7 +200,7 @@
             });
         });
     
-        // Sync all tracks to Soprano's time directly
+        // Gently sync all tracks to the Soprano's current time
         const syncToSoprano = () => {
             const sopranoTime = audioElements[0].currentTime;
     
@@ -212,9 +208,13 @@
                 if (index !== 0 && !muteButtons[index].classList.contains('active')) {
                     const timeDifference = Math.abs(audio.currentTime - sopranoTime);
     
-                    // If time difference exceeds threshold, directly sync the track
                     if (timeDifference > SYNC_THRESHOLD) {
-                        audio.currentTime = sopranoTime; // Reset to Soprano's currentTime
+                        // Gently adjust the track's current time towards the Soprano's current time
+                        if (audio.currentTime < sopranoTime) {
+                            audio.currentTime += 0.01; // Increment by a small amount
+                        } else if (audio.currentTime > sopranoTime) {
+                            audio.currentTime -= 0.01; // Decrement by a small amount
+                        }
                     }
                 }
             });
