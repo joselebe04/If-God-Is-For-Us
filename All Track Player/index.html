@@ -175,77 +175,74 @@
             }
             isPlaying = !isPlaying;
         });
-
-        // Mute/Unmute functionality
+    
+        // Mute/Unmute functionality (original logic restored)
         muteButtons.forEach((button, index) => {
             button.addEventListener('click', () => {
                 const slider = volumeSliders[index];
-                if (slider.value > 0) {
+                const audio = audioElements[index];
+    
+                if (!button.classList.contains('active')) {
+                    // Mute: Set volume to 0
                     slider.value = 0;
-                    audioElements[index].volume = 0;
+                    audio.volume = 0;
                     button.classList.add('active');
                 } else {
+                    // Unmute: Restore volume
                     slider.value = 1;
-                    audioElements[index].volume = 1;
+                    audio.volume = 1;
                     button.classList.remove('active');
                 }
             });
         });
-
-        // Volume Slider functionality
-        volumeSliders.forEach((slider, index) => {
-            slider.addEventListener('input', () => {
-                const volume = slider.value;
-                audioElements[index].volume = volume;
-                if (volume > 0) {
-                    muteButtons[index].classList.remove('active');
-                } else {
-                    muteButtons[index].classList.add('active');
-                }
-            });
-        });
-
-        // Sync all tracks to Soprano's time
+    
+        // Sync all tracks to Soprano's time (without affecting mute/unmute)
         const syncToSoprano = () => {
             const sopranoTime = audioElements[0].currentTime;
+    
             audioElements.forEach((audio, index) => {
-                if (index !== 0 && Math.abs(audio.currentTime - sopranoTime) > 0.1) {
-                    audio.currentTime = sopranoTime;
+                if (index !== 0 && !muteButtons[index].classList.contains('active')) {
+                    // Only sync unmuted tracks
+                    if (Math.abs(audio.currentTime - sopranoTime) > 0.1) {
+                        audio.currentTime = sopranoTime;
+                    }
                 }
             });
         };
-
+    
         // Update time and progress bar as audio plays
         audioElements.forEach((audio, index) => {
             audio.addEventListener('timeupdate', () => {
                 if (isPlaying) {
-                    syncToSoprano(); // Keep syncing to Soprano while playing
+                    syncToSoprano(); // Sync all unmuted tracks to Soprano while playing
                 }
-
-                const currentTime = Math.floor(audioElements[0].currentTime); // Sync display to Soprano
+    
+                // Display Soprano's time
+                const currentTime = Math.floor(audioElements[0].currentTime);
                 const minutes = Math.floor(currentTime / 60);
                 const seconds = currentTime % 60;
                 currentTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
+    
+                // Update progress bar for each track
                 const progress = (audio.currentTime / audio.duration) * 100;
                 progressBars[index].style.left = `${progress}%`;
             });
         });
-
+    
         // Allow seeking by clicking the waveform
         waveforms.forEach((waveform, index) => {
             waveform.addEventListener('click', (e) => {
                 const rect = waveform.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const clickPercentage = clickX / rect.width;
-
+    
                 const newTime = clickPercentage * audioElements[0].duration;
-
+    
                 // Sync all tracks to the new time
                 audioElements.forEach(audio => {
                     audio.currentTime = newTime;
                 });
-
+    
                 if (isPlaying) {
                     audioElements.forEach(audio => audio.play());
                 }
