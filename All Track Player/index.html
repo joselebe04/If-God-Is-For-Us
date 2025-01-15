@@ -165,7 +165,7 @@
         const syncIntervalTime = 100; // Sync interval in milliseconds
         const SYNC_THRESHOLD = 0.1; // Allowable drift in seconds
         let syncInterval;
-    
+        
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
             if (isPlaying) {
@@ -179,38 +179,44 @@
             }
             isPlaying = !isPlaying;
         });
-    
+        
         // Mute/Unmute functionality
         muteButtons.forEach((button, index) => {
             button.addEventListener('click', () => {
                 const slider = volumeSliders[index];
                 const audio = audioElements[index];
-    
+        
                 if (!button.classList.contains('active')) {
                     // Mute: Set volume to 0
                     slider.value = 0;
                     audio.volume = 0;
                     button.classList.add('active');
+                    
+                    // Temporarily stop sync while muting to prevent skipping
+                    clearInterval(syncInterval);
                 } else {
                     // Unmute: Restore volume
                     slider.value = 1;
                     audio.volume = 1;
                     button.classList.remove('active');
+                    
+                    // Restart sync after unmuting
+                    syncInterval = setInterval(syncToSoprano, syncIntervalTime);
                 }
-    
+        
                 // After muting/unmuting, sync the tracks
-                syncToSoprano();
+                setTimeout(() => syncToSoprano(), 100); // Allow some time for volume change to settle
             });
         });
-    
+        
         // Gently sync all tracks to the Soprano's current time
         const syncToSoprano = () => {
             const sopranoTime = audioElements[0].currentTime;
-    
+        
             audioElements.forEach((audio, index) => {
                 if (index !== 0 && !muteButtons[index].classList.contains('active')) {
                     const timeDifference = Math.abs(audio.currentTime - sopranoTime);
-    
+        
                     if (timeDifference > SYNC_THRESHOLD) {
                         // Gently adjust the track's current time towards the Soprano's current time
                         if (audio.currentTime < sopranoTime) {
@@ -222,7 +228,7 @@
                 }
             });
         };
-    
+        
         // Update progress bar and current time
         audioElements.forEach((audio, index) => {
             audio.addEventListener('timeupdate', () => {
@@ -231,27 +237,27 @@
                 const minutes = Math.floor(currentTime / 60);
                 const seconds = currentTime % 60;
                 currentTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    
+        
                 // Update progress bar
                 const progress = (audio.currentTime / audio.duration) * 100;
                 progressBars[index].style.left = `${progress}%`;
             });
         });
-    
+        
         // Allow seeking by clicking the waveform
         waveforms.forEach((waveform, index) => {
             waveform.addEventListener('click', (e) => {
                 const rect = waveform.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const clickPercentage = clickX / rect.width;
-    
+        
                 const newTime = clickPercentage * audioElements[0].duration;
-    
+        
                 // Sync all tracks to the new time
                 audioElements.forEach(audio => {
                     audio.currentTime = newTime;
                 });
-    
+        
                 if (isPlaying) {
                     audioElements.forEach(audio => audio.play());
                 }
