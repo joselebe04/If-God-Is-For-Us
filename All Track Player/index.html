@@ -162,21 +162,24 @@
         const waveforms = document.querySelectorAll('.waveform');
         const volumeSliders = document.querySelectorAll('.volume-slider');
         let isPlaying = false;
+        const syncThreshold = 0.1; // Allowable drift in seconds
         const syncIntervalTime = 100; // Sync interval in milliseconds
-        const SYNC_THRESHOLD = 0.1; // Allowable drift in seconds
-        let syncInterval;
-        let recentlyUnmuted = false; // Track if a track was recently unmuted
+        let syncTimeout;
+        let recentlyUnmuted = false;
+        
+        // Detect if the user is on a mobile device
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
         
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
             if (isPlaying) {
                 audioElements.forEach(audio => audio.pause());
                 playPauseButton.textContent = 'Play';
-                clearInterval(syncInterval); // Stop syncing when paused
+                cancelAnimationFrame(syncTimeout); // Stop syncing when paused
             } else {
                 audioElements.forEach(audio => audio.play());
                 playPauseButton.textContent = 'Pause';
-                syncInterval = setInterval(syncToSoprano, syncIntervalTime); // Sync every 100ms
+                syncLoop(); // Start syncing
             }
             isPlaying = !isPlaying;
         });
@@ -194,7 +197,7 @@
                     button.classList.add('active');
                     
                     // Temporarily stop sync while muting to prevent skipping
-                    clearInterval(syncInterval);
+                    cancelAnimationFrame(syncTimeout);
                     recentlyUnmuted = false; // Reset unmute flag
                 } else {
                     // Unmute: Restore volume
@@ -205,17 +208,13 @@
                     // Set the unmute flag to true and restart sync with a delay
                     recentlyUnmuted = true;
                     setTimeout(() => {
-                        syncInterval = setInterval(syncToSoprano, syncIntervalTime);
-                        syncToSoprano(); // Ensure sync happens once after unmuting
-                    }, 500); // Wait for 500ms after unmute before syncing
+                        syncLoop(); // Restart sync loop after a brief delay
+                    }, 500); // Wait for 500ms after unmute
                 }
-        
-                // After muting/unmuting, sync the tracks
-                setTimeout(() => syncToSoprano(), 100); // Allow some time for volume change to settle
             });
         });
         
-        // Gently sync all tracks to the Soprano's current time
+        // Sync tracks gently with the Soprano
         const syncToSoprano = () => {
             const sopranoTime = audioElements[0].currentTime;
         
@@ -223,7 +222,7 @@
                 if (index !== 0 && !muteButtons[index].classList.contains('active')) {
                     const timeDifference = Math.abs(audio.currentTime - sopranoTime);
         
-                    if (timeDifference > SYNC_THRESHOLD) {
+                    if (timeDifference > syncThreshold) {
                         // Gently adjust the track's current time towards the Soprano's current time
                         if (audio.currentTime < sopranoTime) {
                             audio.currentTime += 0.01; // Increment by a small amount
@@ -233,6 +232,12 @@
                     }
                 }
             });
+        };
+        
+        // Start the sync loop using requestAnimationFrame for smoother updates
+        const syncLoop = () => {
+            syncToSoprano();
+            syncTimeout = requestAnimationFrame(syncLoop);
         };
         
         // Update progress bar and current time
