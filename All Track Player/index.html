@@ -197,6 +197,9 @@
                     audio.volume = 1;
                     button.classList.remove('active');
                 }
+    
+                // After muting/unmuting, sync the tracks
+                syncToSoprano();
             });
         });
     
