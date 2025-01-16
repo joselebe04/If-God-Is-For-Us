@@ -192,7 +192,7 @@
             isPlaying = !isPlaying;
         });
     
-        // Mute/Unmute and Volume Sliders
+        // Mute/Unmute and Volume Sliders with Buffering Pause
         tracks.forEach((track, index) => {
             const muteButton = track.querySelector('.mute');
             const volumeSlider = track.querySelector('.volume-slider');
@@ -212,6 +212,7 @@
                 } else {
                     audio.volume = previousVolume; // Restore previous volume
                     muteButton.classList.remove('active');
+                    stabilizePlayback(); // Buffering mechanism
                 }
                 volumeSlider.value = audio.volume; // Sync slider
             });
@@ -225,6 +226,7 @@
                     muteButton.classList.add('active'); // Simulate mute
                 } else {
                     muteButton.classList.remove('active'); // Unmute if volume > 0
+                    stabilizePlayback(); // Buffering mechanism
                 }
             });
     
@@ -237,6 +239,23 @@
                 }
             });
         });
+    
+        // Stabilize playback by briefly pausing and resuming all tracks
+        const stabilizePlayback = () => {
+            if (!isPlaying) return; // Do nothing if playback is paused
+    
+            // Pause all tracks briefly
+            audioElements.forEach(audio => audio.pause());
+    
+            setTimeout(() => {
+                // Resync currentTime and resume playback
+                const currentTime = audioElements[0].currentTime;
+                audioElements.forEach(audio => {
+                    audio.currentTime = currentTime;
+                    audio.play();
+                });
+            }, 200); // 200ms pause for buffering
+        };
     
         // Update progress bars during playback
         audioElements.forEach(audio => {
