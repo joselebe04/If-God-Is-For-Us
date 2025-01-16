@@ -150,16 +150,13 @@
     </div>
     
     <script>
-        // Selectors
         const playPauseButton = document.querySelector('.play-pause-button');
         const currentTimeDisplay = document.querySelector('.current-time');
         const tracks = document.querySelectorAll('.track');
-    
-        // Initialize variables
         const audioElements = Array.from(document.querySelectorAll('.audio'));
         let isPlaying = false;
     
-        // Sync playback across all audio elements
+        // Sync playback
         const syncTracks = () => {
             const currentTime = audioElements[0].currentTime;
             audioElements.forEach(audio => {
@@ -169,7 +166,7 @@
             });
         };
     
-        // Update the progress bars
+        // Update progress bars
         const updateProgressBars = () => {
             audioElements.forEach((audio, index) => {
                 const progress = tracks[index].querySelector('.progress');
@@ -177,64 +174,76 @@
                 progress.style.left = `${percentage}%`;
             });
     
-            // Update the current time display
             const minutes = Math.floor(audioElements[0].currentTime / 60);
             const seconds = Math.floor(audioElements[0].currentTime % 60).toString().padStart(2, '0');
             currentTimeDisplay.textContent = `${minutes}:${seconds}`;
         };
     
-        // Play/Pause functionality
+        // Play/Pause
         playPauseButton.addEventListener('click', () => {
             if (isPlaying) {
                 audioElements.forEach(audio => audio.pause());
                 playPauseButton.textContent = 'Play';
             } else {
-                const syncInterval = setInterval(syncTracks, 100); // Sync every 100ms
-                audioElements.forEach(audio => {
-                    audio.play();
-                    audio.onended = () => clearInterval(syncInterval); // Clear sync when playback ends
-                });
+                audioElements.forEach(audio => audio.play());
                 playPauseButton.textContent = 'Pause';
+                setInterval(syncTracks, 100); // Sync tracks every 100ms
             }
             isPlaying = !isPlaying;
         });
     
-        // Mute and volume slider functionality
+        // Mute/Unmute and Volume Sliders
         tracks.forEach((track, index) => {
             const muteButton = track.querySelector('.mute');
             const volumeSlider = track.querySelector('.volume-slider');
             const audio = audioElements[index];
     
-            // Initialize volume slider
+            let previousVolume = audio.volume; // To store volume before muting
+    
+            // Initialize slider
             volumeSlider.value = audio.volume;
     
-            // Mute button toggle
+            // Mute button
             muteButton.addEventListener('click', () => {
-                const isMuted = audio.muted;
-                audio.muted = !isMuted;
-                muteButton.classList.toggle('active', !isMuted);
+                if (audio.volume > 0) {
+                    previousVolume = audio.volume; // Store current volume
+                    audio.volume = 0; // Simulate mute
+                    muteButton.classList.add('active');
+                } else {
+                    audio.volume = previousVolume; // Restore previous volume
+                    muteButton.classList.remove('active');
+                }
+                volumeSlider.value = audio.volume; // Sync slider
             });
     
-            // Volume slider change
+            // Volume slider
             volumeSlider.addEventListener('input', (e) => {
-                audio.volume = e.target.value;
-                audio.muted = e.target.value == 0;
-                muteButton.classList.toggle('active', audio.muted);
+                const newVolume = parseFloat(e.target.value);
+                audio.volume = newVolume;
+    
+                if (newVolume === 0) {
+                    muteButton.classList.add('active'); // Simulate mute
+                } else {
+                    muteButton.classList.remove('active'); // Unmute if volume > 0
+                }
             });
     
-            // Automatically toggle mute state when volume changes programmatically
+            // Prevent stuttering by avoiding excessive property checks
             audio.addEventListener('volumechange', () => {
-                volumeSlider.value = audio.volume;
-                muteButton.classList.toggle('active', audio.muted || audio.volume == 0);
+                if (audio.volume === 0 && !muteButton.classList.contains('active')) {
+                    muteButton.classList.add('active');
+                } else if (audio.volume > 0 && muteButton.classList.contains('active')) {
+                    muteButton.classList.remove('active');
+                }
             });
         });
     
-        // Update progress bars as audio plays
+        // Update progress bars during playback
         audioElements.forEach(audio => {
             audio.addEventListener('timeupdate', updateProgressBars);
         });
     
-        // Sync progress bars on click
+        // Seek via waveform click
         tracks.forEach((track, index) => {
             const waveform = track.querySelector('.waveform');
             waveform.addEventListener('click', (e) => {
@@ -243,6 +252,6 @@
                 audioElements.forEach(audio => (audio.currentTime = newTime));
             });
         });
-    </script>    
+    </script>
 </body>
 </html>
