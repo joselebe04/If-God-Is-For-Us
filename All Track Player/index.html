@@ -217,42 +217,51 @@
             const muteButton = track.querySelector('.mute');
             const volumeSlider = track.querySelector('.volume-slider');
             const audio = audioElements[index];
-    
-            let previousVolume = audio.volume; // To store volume before muting
-    
-            // Initialize slider
-            volumeSlider.value = audio.volume;
-    
-            // Mute button
+            let previousVolume = audio.volume; // Store previous volume for unmute
+        
+            volumeSlider.value = audio.volume; // Initialize slider value
+        
             muteButton.addEventListener('click', () => {
                 if (audio.volume > 0) {
-                    previousVolume = audio.volume; // Store current volume
-                    audio.volume = 0; // Simulate mute
+                    // Handle muting
+                    if (index === 0) {
+                        // Special handling for the soprano track
+                        audio.pause(); // Pause soprano to stop resource usage
+                    } else {
+                        // For other tracks, just mute
+                        previousVolume = audio.volume; // Store current volume
+                        audio.volume = 0; // Mute
+                    }
                     muteButton.classList.add('active');
-    
-                    if (index === 0) handleSopranoBuffering(); // Handle soprano-specific issues
                 } else {
-                    audio.volume = previousVolume; // Restore previous volume
+                    // Handle unmuting
+                    if (index === 0) {
+                        // Special handling for the soprano track
+                        audio.currentTime = audioElements[1].currentTime; // Sync with Alto track
+                        audio.play(); // Resume playback
+                    } else {
+                        // For other tracks, restore volume
+                        audio.volume = previousVolume || 1; // Restore volume
+                    }
                     muteButton.classList.remove('active');
-    
-                    if (index === 0) handleSopranoBuffering(); // Handle soprano-specific issues
-                    stabilizePlayback(); // Buffering mechanism
                 }
-                volumeSlider.value = audio.volume; // Sync slider
+                volumeSlider.value = audio.volume; // Update slider
             });
-    
-            // Volume slider
+        
+            // Volume slider logic remains the same
             volumeSlider.addEventListener('input', (e) => {
                 const newVolume = parseFloat(e.target.value);
-                audio.volume = newVolume;
-    
                 if (newVolume === 0) {
-                    muteButton.classList.add('active'); // Simulate mute
-                    if (index === 0) handleSopranoBuffering(); // Handle soprano-specific issues
+                    muteButton.classList.add('active');
                 } else {
-                    muteButton.classList.remove('active'); // Unmute if volume > 0
-                    if (index === 0) handleSopranoBuffering(); // Handle soprano-specific issues
-                    stabilizePlayback(); // Buffering mechanism
+                    muteButton.classList.remove('active');
+                }
+                audio.volume = newVolume;
+        
+                if (index === 0 && newVolume > 0) {
+                    // Resume soprano playback if unmuted via slider
+                    audio.currentTime = audioElements[1].currentTime; // Sync with Alto
+                    audio.play();
                 }
             });
         });
