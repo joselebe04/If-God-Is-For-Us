@@ -92,15 +92,14 @@
             margin-bottom: 10px;
             color: #333;
         }
-
     </style>
 </head>
 <body>
     <div class="player-container">
         <button class="play-pause-button">Play</button>
+
         <div class="current-time">0:00</div>
 
-        <!-- Soprano Track -->
         <div class="track">
             <span class="track-title">Soprano</span>
             <div class="waveform">
@@ -110,10 +109,9 @@
                 <button class="mute">Mute</button>
             </div>
             <input type="range" class="volume-slider" min="0" max="1" step="0.01">
-            <audio class="audio" src="https://joselebe04.github.io/If-God-Is-For-Us/Website 2 Soprano/Soprano.mp3"></audio>
+            <audio class="audio" src="Website 2 Soprano/Soprano.mp3"></audio>
         </div>
 
-        <!-- Alto Track -->
         <div class="track">
             <span class="track-title">Alto</span>
             <div class="waveform">
@@ -123,10 +121,9 @@
                 <button class="mute">Mute</button>
             </div>
             <input type="range" class="volume-slider" min="0" max="1" step="0.01">
-            <audio class="audio" src="https://joselebe04.github.io/If-God-Is-For-Us/Website 3 Alto/Alto.mp3"></audio>
+            <audio class="audio" src="Website 3 Alto/Alto.mp3"></audio>
         </div>
 
-        <!-- Tenor Track -->
         <div class="track">
             <span class="track-title">Tenor</span>
             <div class="waveform">
@@ -136,10 +133,9 @@
                 <button class="mute">Mute</button>
             </div>
             <input type="range" class="volume-slider" min="0" max="1" step="0.01">
-            <audio class="audio" src="https://joselebe04.github.io/If-God-Is-For-Us/Website 4 Tenor/Tenor.mp3"></audio>
+            <audio class="audio" src="Website 4 Tenor/Tenor.mp3"></audio>
         </div>
 
-        <!-- Bass Track -->
         <div class="track">
             <span class="track-title">Bass</span>
             <div class="waveform">
@@ -149,136 +145,103 @@
                 <button class="mute">Mute</button>
             </div>
             <input type="range" class="volume-slider" min="0" max="1" step="0.01">
-            <audio class="audio" src="https://joselebe04.github.io/If-God-Is-For-Us/Website 5 Bass/Bass.mp3"></audio>
+            <audio class="audio" src="Website 5 Bass/Bass.mp3"></audio>
         </div>
     </div>
-
     <script>
+        // Selectors
         const playPauseButton = document.querySelector('.play-pause-button');
-        const audioElements = document.querySelectorAll('.audio');
-        const muteButtons = document.querySelectorAll('.mute');
         const currentTimeDisplay = document.querySelector('.current-time');
-        const progressBars = document.querySelectorAll('.progress');
-        const waveforms = document.querySelectorAll('.waveform');
-        const volumeSliders = document.querySelectorAll('.volume-slider');
+        const tracks = document.querySelectorAll('.track');
+    
+        // Initialize variables
+        const audioElements = Array.from(document.querySelectorAll('.audio'));
         let isPlaying = false;
-        const syncThreshold = 0.1; // Allowable drift in seconds
-        let syncTimeout;
-        
-        // Track unmute events and sync state
-        let unmutedTracks = new Set();
-        
+    
+        // Sync playback across all audio elements
+        const syncTracks = () => {
+            const currentTime = audioElements[0].currentTime;
+            audioElements.forEach(audio => {
+                if (Math.abs(audio.currentTime - currentTime) > 0.1) {
+                    audio.currentTime = currentTime;
+                }
+            });
+        };
+    
+        // Update the progress bars
+        const updateProgressBars = () => {
+            audioElements.forEach((audio, index) => {
+                const progress = tracks[index].querySelector('.progress');
+                const percentage = (audio.currentTime / audio.duration) * 100 || 0;
+                progress.style.left = `${percentage}%`;
+            });
+    
+            // Update the current time display
+            const minutes = Math.floor(audioElements[0].currentTime / 60);
+            const seconds = Math.floor(audioElements[0].currentTime % 60).toString().padStart(2, '0');
+            currentTimeDisplay.textContent = `${minutes}:${seconds}`;
+        };
+    
         // Play/Pause functionality
         playPauseButton.addEventListener('click', () => {
             if (isPlaying) {
                 audioElements.forEach(audio => audio.pause());
                 playPauseButton.textContent = 'Play';
-                cancelAnimationFrame(syncTimeout); // Stop syncing when paused
             } else {
-                audioElements.forEach(audio => audio.play());
+                const syncInterval = setInterval(syncTracks, 100); // Sync every 100ms
+                audioElements.forEach(audio => {
+                    audio.play();
+                    audio.onended = () => clearInterval(syncInterval); // Clear sync when playback ends
+                });
                 playPauseButton.textContent = 'Pause';
-                syncLoop(); // Start syncing
             }
             isPlaying = !isPlaying;
         });
-        
-        // Mute/Unmute functionality
-        muteButtons.forEach((button, index) => {
-            button.addEventListener('click', () => {
-                const slider = volumeSliders[index];
-                const audio = audioElements[index];
-        
-                if (!button.classList.contains('active')) {
-                    // Mute: Set volume to 0
-                    slider.value = 0;
-                    audio.volume = 0;
-                    button.classList.add('active');
-        
-                    // Remove from unmuted set
-                    unmutedTracks.delete(index);
-                    
-                    // Temporarily stop sync while muting
-                    cancelAnimationFrame(syncTimeout);
-                } else {
-                    // Unmute: Restore volume
-                    slider.value = 1;
-                    audio.volume = 1;
-                    button.classList.remove('active');
-        
-                    // Add to unmuted set
-                    unmutedTracks.add(index);
-                    
-                    // Ensure sync when unmuting
-                    syncToSoprano();
-                    syncLoop(); // Restart sync loop
-                }
+    
+        // Mute and volume slider functionality
+        tracks.forEach((track, index) => {
+            const muteButton = track.querySelector('.mute');
+            const volumeSlider = track.querySelector('.volume-slider');
+            const audio = audioElements[index];
+    
+            // Initialize volume slider
+            volumeSlider.value = audio.volume;
+    
+            // Mute button toggle
+            muteButton.addEventListener('click', () => {
+                const isMuted = audio.muted;
+                audio.muted = !isMuted;
+                muteButton.classList.toggle('active', !isMuted);
+            });
+    
+            // Volume slider change
+            volumeSlider.addEventListener('input', (e) => {
+                audio.volume = e.target.value;
+                audio.muted = e.target.value == 0;
+                muteButton.classList.toggle('active', audio.muted);
+            });
+    
+            // Automatically toggle mute state when volume changes programmatically
+            audio.addEventListener('volumechange', () => {
+                volumeSlider.value = audio.volume;
+                muteButton.classList.toggle('active', audio.muted || audio.volume == 0);
             });
         });
-        
-        // Sync all tracks gently with the Soprano
-        const syncToSoprano = () => {
-            const sopranoTime = audioElements[0].currentTime;
-        
-            audioElements.forEach((audio, index) => {
-                // Only sync unmuted tracks that are not the soprano
-                if (index !== 0 && unmutedTracks.has(index) && !muteButtons[index].classList.contains('active')) {
-                    const timeDifference = Math.abs(audio.currentTime - sopranoTime);
-        
-                    if (timeDifference > syncThreshold) {
-                        // Gently adjust the track's current time towards the Soprano's current time
-                        if (audio.currentTime < sopranoTime) {
-                            audio.currentTime += 0.01; // Increment by a small amount
-                        } else if (audio.currentTime > sopranoTime) {
-                            audio.currentTime -= 0.01; // Decrement by a small amount
-                        }
-                    }
-                }
-            });
-        };
-        
-        // Start the sync loop using requestAnimationFrame for smoother updates
-        const syncLoop = () => {
-            // Only sync if playing
-            if (isPlaying) {
-                syncToSoprano();
-                syncTimeout = requestAnimationFrame(syncLoop);
-            }
-        };
-        
-        // Update progress bar and current time
-        audioElements.forEach((audio, index) => {
-            audio.addEventListener('timeupdate', () => {
-                // Update Soprano's time display
-                const currentTime = Math.floor(audioElements[0].currentTime);
-                const minutes = Math.floor(currentTime / 60);
-                const seconds = currentTime % 60;
-                currentTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        
-                // Update progress bar
-                const progress = (audio.currentTime / audio.duration) * 100;
-                progressBars[index].style.left = `${progress}%`;
-            });
+    
+        // Update progress bars as audio plays
+        audioElements.forEach(audio => {
+            audio.addEventListener('timeupdate', updateProgressBars);
         });
-        
-        // Allow seeking by clicking the waveform
-        waveforms.forEach((waveform, index) => {
+    
+        // Sync progress bars on click
+        tracks.forEach((track, index) => {
+            const waveform = track.querySelector('.waveform');
             waveform.addEventListener('click', (e) => {
-                const rect = waveform.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickPercentage = clickX / rect.width;
-        
-                const newTime = clickPercentage * audioElements[0].duration;
-        
-                // Sync all tracks to the new time
-                audioElements.forEach(audio => {
-                    audio.currentTime = newTime;
-                });
-        
-                if (isPlaying) {
-                    audioElements.forEach(audio => audio.play());
-                }
+                const clickPosition = e.offsetX / waveform.offsetWidth;
+                const newTime = clickPosition * audioElements[0].duration;
+                audioElements.forEach(audio => (audio.currentTime = newTime));
             });
         });
-    </script>
+    </script>    
 </body>
 </html>
