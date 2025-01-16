@@ -151,121 +151,89 @@
     
     <script>
         const playPauseButton = document.querySelector('.play-pause-button');
-        const currentTimeDisplay = document.querySelector('.current-time');
+        const audioElements = document.querySelectorAll('audio');
         const tracks = document.querySelectorAll('.track');
-        const audioElements = Array.from(document.querySelectorAll('.audio'));
         let isPlaying = false;
-    
-        // Sync playback
-        const syncTracks = () => {
-            const currentTime = audioElements[0].currentTime;
-            audioElements.forEach(audio => {
-                if (Math.abs(audio.currentTime - currentTime) > 0.1) {
-                    audio.currentTime = currentTime;
-                }
-            });
-        };
-    
-        // Update progress bars
-        const updateProgressBars = () => {
-            audioElements.forEach((audio, index) => {
-                const progress = tracks[index].querySelector('.progress');
-                const percentage = (audio.currentTime / audio.duration) * 100 || 0;
-                progress.style.left = `${percentage}%`;
-            });
-    
-            const minutes = Math.floor(audioElements[0].currentTime / 60);
-            const seconds = Math.floor(audioElements[0].currentTime % 60).toString().padStart(2, '0');
-            currentTimeDisplay.textContent = `${minutes}:${seconds}`;
-        };
-    
-        // Play/Pause
+        let syncInterval = null; // Sync interval reference
+        let bufferDuration = 400; // Buffer duration in milliseconds
+        
         playPauseButton.addEventListener('click', async () => {
             if (!isPlaying) {
                 // Wait for all audio elements to be ready
                 await Promise.all(
                     audioElements.map(audio => {
-                        return new Promise((resolve) => {
+                        return new Promise(resolve => {
                             if (audio.readyState >= 4) {
-                                // Already fully loaded
-                                resolve();
+                                resolve(); // Already loaded
                             } else {
-                                // Wait until the 'canplaythrough' event fires
                                 audio.addEventListener('canplaythrough', resolve, { once: true });
                             }
                         });
                     })
                 );
         
-                // Start playback after buffering is complete
+                // Start playback for all tracks
                 audioElements.forEach(audio => audio.play());
                 playPauseButton.textContent = 'Pause';
                 isPlaying = true;
         
-                // Sync tracks every 100ms
-                setInterval(syncTracks, 100);
+                // Start periodic sync
+                syncInterval = setInterval(syncTracks, bufferDuration);
             } else {
                 // Pause all tracks
                 audioElements.forEach(audio => audio.pause());
                 playPauseButton.textContent = 'Play';
                 isPlaying = false;
+        
+                // Clear periodic sync
+                clearInterval(syncInterval);
             }
         });
         
-        // Mute/Unmute and Volume Sliders with Buffering Pause
+        // Synchronize all tracks
+        function syncTracks() {
+            const masterTime = audioElements[0].currentTime; // Use Soprano as the master track
+            audioElements.forEach(audio => {
+                if (Math.abs(audio.currentTime - masterTime) > 0.05) {
+                    audio.currentTime = masterTime; // Force sync
+                }
+            });
+        }
+        
+        // Mute and volume slider functionality
         tracks.forEach((track, index) => {
             const muteButton = track.querySelector('.mute');
             const volumeSlider = track.querySelector('.volume-slider');
             const audio = audioElements[index];
-            let previousVolume = audio.volume; // Store previous volume for unmute
         
             volumeSlider.value = audio.volume; // Initialize slider value
+            let previousVolume = audio.volume; // Store previous volume for unmute
         
             muteButton.addEventListener('click', () => {
                 if (audio.volume > 0) {
-                    // Handle muting
-                    if (index === 0) {
-                        // Special handling for the soprano track
-                        audio.pause(); // Pause soprano to stop resource usage
-                    } else {
-                        // For other tracks, just mute
-                        previousVolume = audio.volume; // Store current volume
-                        audio.volume = 0; // Mute
-                    }
+                    // Mute track
+                    previousVolume = audio.volume;
+                    audio.volume = 0; // Set volume to 0 instead of pausing
                     muteButton.classList.add('active');
                 } else {
-                    // Handle unmuting
-                    if (index === 0) {
-                        // Special handling for the soprano track
-                        audio.currentTime = audioElements[1].currentTime; // Sync with Alto track
-                        audio.play(); // Resume playback
-                    } else {
-                        // For other tracks, restore volume
-                        audio.volume = previousVolume || 1; // Restore volume
-                    }
+                    // Unmute track
+                    audio.volume = previousVolume || 1;
                     muteButton.classList.remove('active');
                 }
-                volumeSlider.value = audio.volume; // Update slider
+                volumeSlider.value = audio.volume;
             });
         
-            // Volume slider logic remains the same
             volumeSlider.addEventListener('input', (e) => {
                 const newVolume = parseFloat(e.target.value);
+                audio.volume = newVolume;
+        
                 if (newVolume === 0) {
                     muteButton.classList.add('active');
                 } else {
                     muteButton.classList.remove('active');
                 }
-                audio.volume = newVolume;
-        
-                if (index === 0 && newVolume > 0) {
-                    // Resume soprano playback if unmuted via slider
-                    audio.currentTime = audioElements[1].currentTime; // Sync with Alto
-                    audio.play();
-                }
             });
-        });
-    
+        });    
         // Stabilize playback by briefly pausing and resuming all tracks
         const stabilizePlayback = () => {
             if (!isPlaying) return; // Do nothing if playback is paused
